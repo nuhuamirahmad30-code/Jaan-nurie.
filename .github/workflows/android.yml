@@ -6,19 +6,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fix nested folders and dots
+      - name: Auto-extract zip if you uploaded it
         run: |
-          echo "Finding package.json..."
-          find . -name "package.json" -type f | head -20
+          ls -la
+          # Find and extract any zip, even if named .html
+          for f in *.zip* *.html; do
+            if [ -f "$f" ]; then
+              echo "Checking $f"
+              unzip -t "$f" > /dev/null 2>&1 && echo "Extracting $f" && unzip -o "$f" && rm "$f" || true
+            fi
+          done
+          # Also check inside subfolders
+          find . -name "*.zip*" -type f -exec sh -c 'unzip -o "$1" && rm "$1"' _ {} \; || true
+          ls -la
+          find . -name "package.json" -type f
+
+      - name: Move package.json to root
+        run: |
           FOUND=$(find . -name "package.json" -type f | grep -v node_modules | head -1)
-          echo "Found: $FOUND"
+          echo "Found at: $FOUND"
           if [ -n "$FOUND" ]; then
             DIR=$(dirname "$FOUND")
-            echo "Dir: $DIR"
             if [ "$DIR" != "." ]; then
-              cp -r $DIR/* . || true
+              cp -r $DIR/* . 2>/dev/null || true
               cp -r $DIR/.* . 2>/dev/null || true
-              echo "Moved to root"
             fi
           fi
           ls -la
@@ -33,20 +44,16 @@ jobs:
           distribution: temurin
       - uses: android-actions/setup-android@v3
 
-      - name: Install
-        run: npm install
-      - name: Add Android
-        run: npx cap add android || true
-      - name: Copy
-        run: npx cap copy android && npx cap sync android
-      - name: Make executable
-        run: chmod +x android/gradlew
+      - run: npm install
+      - run: npx cap add android || true
+      - run: npx cap copy android && npx cap sync android
+      - run: chmod +x android/gradlew
+
       - name: Build APK
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: JaanNurie-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
