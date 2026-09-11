@@ -11,14 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fix folder structure
+      - name: Auto extract zip if uploaded by mistake
         run: |
           ls -la
-          find . -name "package.json" -type f
-          # If files are nested, move them to root
-          if [ -f "Jaan-nurie./package.json" ]; then mv Jaan-nurie./* . && mv Jaan-nurie./.* . 2>/dev/null || true; rm -rf Jaan-nurie.; fi
-          if [ -f "Jaan-nurie./Jaan-nurie./package.json" ]; then mv Jaan-nurie./Jaan-nurie./* . && mv Jaan-nurie./Jaan-nurie./.* . 2>/dev/null || true; rm -rf Jaan-nurie.; fi
-          if [ -f "JaanNurie_InstantAPK/package.json" ]; then mv JaanNurie_InstantAPK/* .; rm -rf JaanNurie_InstantAPK; fi
+          for z in *.zip *.ZIP; do [ -f "$z" ] && echo "Found zip $z, extracting..." && unzip -o "$z" && rm "$z" || true; done
+          # Also handle weird html named zip
+          for z in *.html; do if unzip -t "$z" >/dev/null 2>&1; then echo "Found zip named as html, extracting"; unzip -o "$z" && rm "$z"; fi; done
+          ls -la
+          find . -maxdepth 3 -name "package.json"
+
+      - name: Move files to root if nested
+        run: |
+          if [ ! -f package.json ]; then
+            FOUND=$(find . -name "package.json" -type f | head -1)
+            if [ -n "$FOUND" ]; then
+              DIR=$(dirname "$FOUND")
+              echo "Found package.json in $DIR, moving to root"
+              cp -r $DIR/* . || true
+              cp -r $DIR/.* . 2>/dev/null || true
+            fi
+          fi
           ls -la
           cat package.json
 
@@ -52,10 +64,4 @@ jobs:
 
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: JaanNurie-Life-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+        run
