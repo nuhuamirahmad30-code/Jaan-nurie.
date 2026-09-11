@@ -1,67 +1,34 @@
-name: Build Jaan Nurie Life APK
-
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-
+name: Build APK
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Auto extract zip if uploaded by mistake
-        run: |
-          ls -la
-          for z in *.zip *.ZIP; do [ -f "$z" ] && echo "Found zip $z, extracting..." && unzip -o "$z" && rm "$z" || true; done
-          # Also handle weird html named zip
-          for z in *.html; do if unzip -t "$z" >/dev/null 2>&1; then echo "Found zip named as html, extracting"; unzip -o "$z" && rm "$z"; fi; done
-          ls -la
-          find . -maxdepth 3 -name "package.json"
-
-      - name: Move files to root if nested
-        run: |
-          if [ ! -f package.json ]; then
-            FOUND=$(find . -name "package.json" -type f | head -1)
-            if [ -n "$FOUND" ]; then
-              DIR=$(dirname "$FOUND")
-              echo "Found package.json in $DIR, moving to root"
-              cp -r $DIR/* . || true
-              cp -r $DIR/.* . 2>/dev/null || true
-            fi
-          fi
-          ls -la
-          cat package.json
-
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Set up Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
+          distribution: temurin
+      - name: Setup Android
         uses: android-actions/setup-android@v3
-
-      - name: Install dependencies
+      - name: Install
         run: npm install
-
-      - name: Add Android platform
+      - name: Add Android
         run: npx cap add android || true
-
-      - name: Copy web assets
-        run: |
-          npx cap copy android
-          npx cap sync android
-
-      - name: Grant execute permission
+      - name: Copy Assets
+        run: npx cap copy android && npx cap sync android
+      - name: Make gradlew executable
         run: chmod +x android/gradlew
-
       - name: Build APK
         working-directory: android
-        run
+        run: ./gradlew assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JaanNurie-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
