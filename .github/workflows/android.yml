@@ -8,9 +8,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fix folder structure
+        run: |
+          ls -la
+          find . -name "package.json" -type f
+          # If files are nested, move them to root
+          if [ -f "Jaan-nurie./package.json" ]; then mv Jaan-nurie./* . && mv Jaan-nurie./.* . 2>/dev/null || true; rm -rf Jaan-nurie.; fi
+          if [ -f "Jaan-nurie./Jaan-nurie./package.json" ]; then mv Jaan-nurie./Jaan-nurie./* . && mv Jaan-nurie./Jaan-nurie./.* . 2>/dev/null || true; rm -rf Jaan-nurie.; fi
+          if [ -f "JaanNurie_InstantAPK/package.json" ]; then mv JaanNurie_InstantAPK/* .; rm -rf JaanNurie_InstantAPK; fi
+          ls -la
+          cat package.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -37,10 +47,10 @@ jobs:
           npx cap copy android
           npx cap sync android
 
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission
         run: chmod +x android/gradlew
 
-      - name: Build APK Debug
+      - name: Build APK
         working-directory: android
         run: ./gradlew assembleDebug
 
